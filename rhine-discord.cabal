@@ -53,7 +53,6 @@ library
         discord-haskell,
         rhine,
         text,
-        time,
         transformers,
         unliftio,
     other-modules:

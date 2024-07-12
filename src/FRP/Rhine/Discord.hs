@@ -19,7 +19,7 @@ flowDiscord
        , Clock DiscordHandler (In cl)
        , Clock DiscordHandler (Out cl)
        , GetClockProxy cl
-       , Time cl ~ UTCTime
+       , Time cl ~ Time DiscordEventClock
        , Time (In cl) ~ Time cl
        , Time (Out cl) ~ Time cl
        )
@@ -28,9 +28,9 @@ flowDiscord
     -> st
     -> ClSF DiscordHandler DiscordEventClock st st
     -> ClSF DiscordHandler DiscordLogClock st st
-    -> Rhine DiscordHandler cl st ()
+    -> Rhine DiscordHandler cl st st
     -> IO ()
-flowDiscord discordToken discordGatewayIntent initialState handleEvents handleLog sinkRh = do
+flowDiscord discordToken discordGatewayIntent initialState handleEvents handleLog simRh = do
     eventChan <- newChan
     logChan <- newChan
     let hoistClock :: (Monad m, Time cl1 ~ Time cl2, Tag cl1 ~ Tag cl2) => ClSF m cl1 a b -> ClSF m cl2 a b
@@ -40,9 +40,7 @@ flowDiscord discordToken discordGatewayIntent initialState handleEvents handleLo
         mainRh =
             feedbackRhine
                 (keepLast initialState)
-                (snd ^>>@ (eventsRh |@| logRh) @>>^ \st -> (st, st))
-                >-- keepLast initialState
-                --> sinkRh
+                (snd ^>>@ ((eventsRh |@| logRh) |@| simRh) @>>^ ((),))
     void . runDiscord $
         RunDiscordOpts
             { discordToken
