@@ -25,26 +25,28 @@ flowDiscord
        )
     => Text
     -> GatewayIntent
-    -> st
+    -> DiscordHandler st
     -> ClSF DiscordHandler DiscordEventClock st st
     -> ClSF DiscordHandler DiscordLogClock st st
     -> Rhine DiscordHandler cl st st
-    -> IO ()
-flowDiscord discordToken discordGatewayIntent initialState handleEvents handleLog simRh = do
+    -> IO Text
+flowDiscord discordToken discordGatewayIntent getInitialState handleEvents handleLog simRh = do
     eventChan <- newChan
     logChan <- newChan
     let hoistClock :: (Monad m, Time cl1 ~ Time cl2, Tag cl1 ~ Tag cl2) => ClSF m cl1 a b -> ClSF m cl2 a b
         hoistClock = hoistS $ withReaderT . retag $ id
         eventsRh = hoistClock handleEvents @@ eventClockOn @DiscordHandler eventChan
         logRh = hoistClock handleLog @@ eventClockOn @DiscordHandler logChan
-        mainRh =
+        mainRh initialState =
             feedbackRhine
                 (keepLast initialState)
                 (snd ^>>@ ((eventsRh |@| logRh) |@| simRh) @>>^ ((),))
-    void . runDiscord $
+    runDiscord
         RunDiscordOpts
             { discordToken
-            , discordOnStart = void . forkIO . flow $ mainRh
+            , discordOnStart = do
+                initialState <- getInitialState
+                void . forkIO . flow $ mainRh initialState
             , discordOnLog = writeChan logChan
             , discordOnEvent = liftIO . writeChan eventChan
             , discordOnEnd = pure ()

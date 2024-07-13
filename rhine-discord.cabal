@@ -45,16 +45,25 @@ common common
         ViewPatterns
     build-depends:
         base >= 4 && < 5,
+        discord-haskell,
+        rhine,
+        text,
 
 library
     import:           common
     hs-source-dirs:   src
     build-depends:
-        discord-haskell,
-        rhine,
-        text,
         transformers,
         unliftio,
     other-modules:
     exposed-modules:
         FRP.Rhine.Discord
+
+executable example
+    import:           common
+    main-is:          Example.hs
+    ghc-options:      -main-is Example -O2 -threaded
+    build-depends:
+        dhall,
+        random,
+        rhine-discord,
